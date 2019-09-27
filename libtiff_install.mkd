@@ -1,0 +1,8 @@
+wget https://download.osgeo.org/libtiff/tiff-4.0.9.tar.gz
+tar zvxf tiff-4.0.9.tar.gz
+cd ./tiff-4.0.9/
+sh autogen.sh
+./configure --host=arm-linux CC=arm-linux-gcc --prefix=/usr/local/arm/4.5.1/arm-none-linux-gnueabi/ CXX=arm-linux-g++
+sudo -s
+make && make install
+exit

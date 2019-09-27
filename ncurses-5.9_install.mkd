@@ -1,0 +1,33 @@
+# 安裝 ncurses-5.9
+
+tar zxvf ncurses-5.9.tar.gz  
+cd ./ncurses-5.9
+./configure --host=arm-linux CC=arm-linux-gcc --prefix=/usr/local/arm/4.5.1/arm-none-linux-gnueabi  
+sudo -s  
+make  
+make install  
+exit  
+cd /usr/local/arm/4.5.1/arm-none-linux-gnueabi/lib  
+ls *curse*  
+會列出以下三個library
+libncurses.a  libncurses++.a  libncurses_g.a  
+把以上三個library移至板子端的library
+cp -rf \*curse\* /home/nathan/root_mkfs/lib
+
+---
+測試ncurses  
+再回到ncurses-5.9資料夾，並到裡面的子資料夾test  
+cp tclock /home/nathan/root_mkfs/  
+現在到板子端執行tclock這執行檔  
+./tclock  
+出現  
+==============================  
+			Error opening terminal: vt100.  
+==============================  
+解決方式：  
+電腦端  
+cp -rf /usr/local/arm/4.5.1/arm-none-linux-gnueabi/share/terminfo /home/nathan/root_mkfs/usr/  
+之後到板子端  
+root@Tiny4412 /# export TERMINFO=/usr/terminfo  
+再次執行tclock，結果如下圖  
+![](https://imgur.com/qT0Bc4h.jpg)

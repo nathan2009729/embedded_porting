@@ -1,0 +1,18 @@
+
+缺少libts-1.0.so.0解決方案
+===
+1. sudo apt-get install autoconf
+2. sudo apt-get install automake
+3. sudo apt-get install libtool
+4. git clone https://github.com/kergoth/tslib.git
+5. cd ./tslib/
+6. ./autogen.sh
+7. ./configure --host=arm-linux --prefix=/usr/local/arm/4.5.1/arm-none-linux-gnueabi/ CC=arm-linux-gcc ac_cv_func_malloc_0_nonnull=yes
+8. make
+9. make install
+
+locate *libts*
+cp -rf /usr/local/arm/4.5.1/arm-none-linux-gnueabi/sys-root/usr/lib/libts-1.0.so* /home/nathan/root_mkfs/lib
+===
+
+

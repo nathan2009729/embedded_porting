@@ -1,0 +1,200 @@
+# 要是板子作業系統損壞，該如何復原
+
+首先要製作一張還原卡：  
+將SD卡插入電腦，並確認它的代號(使用linux命令df或fdisk -l)，應該是sdb接某數字。
+
+再來，下載課程提供的sd_fusing.tar.bz2壓縮檔，並解壓縮  
+	tar -xvf sd_fusing.tar.bz2  
+再執行以下指令：  
+	cd sd_fusing  
+	sudo sh ./sd_fusing.sh /dev/sdb  
+
+製作完還原卡，就是重灌。在關機的情況下，插入製作好的sd卡，把開關對面的黑桿往下搬，即可設定成sd卡開機，開機後執行以下指令：  
+(板子端) In Exynos4412 bootloader stage		
+1. emmc open 1  
+2. dnw  
+4. mmc write 1 0xc0000000 0 0x10  
+5. dnw  
+7. mmc write 1 0xc0000000 0x10 0x1C  
+8. dnw  
+10. mmc write 1 0xc0000000 0x30 0x21D  
+11. emmc close 1  
+(電腦端)注意現在目錄在init_boot下，其中包含E4412_N.bl1.bin, bl2.bin,u-boot.bin跟zImage     
+3. sudo dnw E4412_N.bl1.bin  
+6. sudo dnw bl2.bin  
+9. sudo dnw u-boot.bin  
+(板子端)  
+1. fastboot  
+3. 按重開鍵  
+(電腦端) In host PC  
+2. sudo fastboot flash kernel zImage  
+# 更改程式碼使得在bootloder階段可做一些事
+
+先下載uboot_tiny4412_new.tgz，解壓縮後移至該目錄。
+`tar xvf uboot_tiny4412_new.tgz`  
+`cd uboot_tiny4412_new`  
+
+練習1  
+修改uboot中tiny4412的設定檔，更改bootdelay的值  
+
+---
+
+`sudo vim include/configs/tiny4412.h`  
+找到#define CONFIG_BOOTDELAY並修改其後面的值  
+![](https://imgur.com/MalpBjP.jpg)
+儲存離開後，執行以下2指令  
+`make tiny4412_config`  
+`make -j8`  
+
+---
+將更改過後的設定值燒錄到板子，步驟如下：  
+(板子端)  
+1. fastboot  
+3. 按下reset鈕  
+(電腦端)  
+2.   sudo fastboot flash bootloader u-boot.bin  
+
+練習2  
+更改main.c，使得開機時可出現自己print出來的文字。
+---
+移動到
+在  
+修改`uboot_tiny4412_new/common`資料夾內的main.c，找到以下程式碼：
+![](https://imgur.com/jP0Wsn4.jpg)
+在
+`#if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)`的前面加上
+`printf("hahaha\n");`
+![](https://imgur.com/IYAaTpS.jpg)
+
+將更改過後的設定值燒錄到板子，步驟如下：  
+(板子端)  
+1. fastboot  
+3. 按下reset鈕  
+(電腦端)  
+2.   sudo fastboot flash bootloader u-boot.bin  
+在reset後，可在板子端的terminal看到hahaha
+![](https://imgur.com/xcaGvLY.jpg)
+
+---
+
+# Bootloader LED Driver
+
+`mw 0x110002E0 0x1100 1`  
+`mm 0x110002E4 => 0003`  
+	(HEX)  0000 0000 0000 0011 (Binary)  (LED1 LED2 off, LED3 LED4 on)  
+	or  
+`mw 0x110002E4 0x0003 1`   
+
+利用c code做控制：
+到以下目錄：  
+`/uboot_tiny4412_new/arch/arm/include/asm/arch-exynos`  
+修改裡面的s5p_nand.h，在#define區塊的最前面加上以下#define:  
+```cpp
+#define GPM4CON_OFFSET                  0x2E0 
+#define GPM4DAT_OFFSET                  0x2E4
+
+#define GPM4CON_REG                     __REG(GPIO_BASE + GPM4CON_OFFSET)
+#define GPM4DAT_REG                     __REG(GPIO_BASE + GPM4DAT_OFFSET)   
+```
+再來回到  
+`/uboot_tiny4412_new/common`  
+修改裡面的main.c  
+在
+```cpp
+#ifdef CONFIG_MODEM_SUPPORT
+  int do_mdm_init = 0;
+  extern void mdm_init(void); /* defined in board.c */
+  #endif
+``` 
+的後面加上以下函式定義：
+```cpp
+static void gpio_init(void)
+{
+	//CONFIGURE GPM4_2 and GPM4_3 as output pin
+        GPM4CON_REG &=0xFFFF00FF;
+        GPM4CON_REG |=0x00001100;
+	printf("LED init\n");
+}
+
+static void led_off(unsigned char pinno)
+{
+        if(pinno == 3){
+                GPM4DAT_REG |= 0x04;
+        }
+        else{
+                GPM4DAT_REG |= 0x08;
+        }
+}
+
+
+static void led_on(unsigned char pinno)
+{
+        if(pinno == 3){
+        	GPM4DAT_REG &=0xFB;
+        }
+        else{
+        	GPM4DAT_REG &=0xF7;
+        }
+}
+```    
+並在`void main_loop (void)`這函式裡的  
+```cpp
+debug ("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
+```
+語句後面，加上以下c code
+```cpp
+int count=0;
+	gpio_init();
+        for(count=0; count < 5 ;count++)
+        {
+                udelay(100000);
+                led_on(3);
+                udelay(100000);
+                led_on(4);
+                udelay(100000);
+                led_off(3);
+                udelay(100000);
+                led_off(4);
+                udelay(100000);
+                led_on(3);
+                udelay(100000);
+                led_on(4);
+ 	}
+```
+![](https://imgur.com/xHuCWsU.jpg)
+
+儲存後離開。之後再次回到/uboot_tiny4412_new/目錄下：  
+1. make tiny4412_config  
+2. make -j4
+
+之後就是再次燒錄板子：  
+(板子端)  
+1. fastboot  
+3. 按下reset鈕  
+(電腦端)  
+2.   sudo fastboot flash bootloader u-boot.bin  
+在板子再次重開機時，可發現板子端的terminal出現LED init，且led燈閃爍。
+![](https://imgur.com/HLRprzN.jpg)
+
+挑戰：讓蜂鳴器響  
+
+直接讓板子叫：  
+`mw 0x114000A0 0x00000001`  
+`mw 0x114000A4 0x00000001`  
+先找到板子上蜂鳴器的編號：BP1，再對照底板(buttom)說明文件，可以發現BP1先接到PWM0，再接到XpwmTOUT0。再來看看
+core文件，可以發現XpwmTOUT0接到了AE24，同時跟GPD0_0共用接口。接下來我們來看Exynos 4412 SCP的user manual，尋找要如何控制GPD0_0。首先要找到GPD0的con(control)，再找到dat(data)，搜尋後結果如下  
+![](https://imgur.com/7dzYKB6.jpg)  
+最底下的GPD0CON[0]就是GPD0_0，我們希望它叫，所以它是
+output，依文件說明，設成output代表要設成1。再看看上圖最上方，知道了要從位址0x114000A0來控制GPD0，所以我們的  
+`mw 0x114000A0 0x00000001`  
+就是把蜂鳴器設定成output。
+
+想讓它叫，就會用到GPD0DAT，文件說明如下：  
+![](https://imgur.com/TAl4CW3.jpg)
+可以知道位址是0x114000A4，而要響，就是這位址後面加上  
+0x00000001  
+也就是
+`mw 0x114000A4 0x00000001`  
+
+使用c code控制:
+

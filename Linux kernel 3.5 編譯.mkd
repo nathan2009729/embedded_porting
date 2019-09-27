@@ -1,0 +1,19 @@
+# Linux kernel 3.5 編譯至板子
+
+tar xvf linux-3.5-Tiny4412.tar.bz2  
+cp Tiny4412.config ~/embedded_porting/day4/linux-3.5-Tiny4412/.config  
+cd ./linux-3.5-Tiny4412/  
+make  
+如果成功，會出現以下畫面  
+![](https://imgur.com/3psqcXh.jpg)
+cd ./arch/arm/boot/  
+ls  
+![](https://imgur.com/lk49Lqq.jpg)  
+接下來把編譯好的kernel燒到板子端
+
+sudo fastboot #在板子端下的指令  
+sudo fastboot flash kernel zImage#在電腦端下的指令  
+再按下板子的重開機鍵，重新開機後輸入  
+uname -a  
+可發現這kernel是剛剛編譯的
+![](https://imgur.com/h51WBOh.jpg)

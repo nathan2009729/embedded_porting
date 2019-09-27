@@ -1,0 +1,53 @@
+# 安裝 SDL_image 1.2.12
+
+1 tar zxvf SDL_image1.2.12.tar.gz && cd SDL_image1.2.12  
+2 ./configure --host=arm-linux CC=arm-linux-gcc --prefix=/usr/local/arm/4.5.1/arm-none-linux-gnueabi --with-sdl-prefix=/usr/local/arm/4.5.1/arm-none-linux-gnueabi/  
+可能會出現如下錯誤  
+![](https://imgur.com/QEl66bA.jpg)  
+
+---
+經過google，可以知道是沒裝libtiff。以下是安裝步驟：  
+
+1 wget https://download.osgeo.org/libtiff/ tiff-4.0.9.tar.gz  
+2 tar zvxf tiff-4.0.9.tar.gz  
+3 cd ./tiff-4.0.9/  
+4 sh autogen.sh  
+5 ./configure --host=arm-linux CC=arm-linux-gcc --prefix=/usr/local/arm/4.5.1/arm-none-linux-gnueabi/ CXX=arm-linux-g++  
+6 sudo -s  
+7 make && make install  
+8 exit
+
+---
+回到SDL_image1.2.12的目錄，再執行一次./configure，可出現找到tiff相關library如下圖
+![](https://imgur.com/2XBl23i.jpg)  
+
+接下來就是make跟make install，但是要注意先切到root權限。  
+3 sudo -s  
+4 make  
+可能會出現以下錯誤  
+![](https://imgur.com/VF3HvuK.jpg)  
+經查詢，這是因為沒安裝libwebp。libwebp的安裝方式如下：
+
+---
+先goolge搜尋libwebp-0.1.3，下載下來並解壓縮  
+1  cd ./libwebp-0.1.3  
+2 ./autogen.sh  
+3 ./configure --host=arm-linux --prefix=/usr/local/arm/4.5.1/arm-none-linux-gnueabi/ CC=arm-linux-gcc  
+4 sudo -s  
+5 make && make install
+
+---
+
+回到SDL_image1.2.12的目錄再次編譯  
+make && make install  
+即可成功如下圖  
+![](https://imgur.com/1g5p7ZR.jpg)  
+
+---
+
+測試是否成功
+首先把SDL_image-1.2.12裡的.libs/showimage這個執行檔複製到板子端的目錄  
+cp /home/nathan/embedded_porting/day4/practice/SDL_image-1.2.12/.libs/showimage /home/nathan/root_mkfs/  
+之後板子開機，執行  
+./showimage demo1.jpeg
+  

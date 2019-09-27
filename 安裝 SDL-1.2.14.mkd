@@ -1,0 +1,69 @@
+# 安裝 SDL-1.2.14
+
+指令如下  
+1 tar zxvf SDL-1.2.14.tar.gz  
+2 cd ./SDL-1.2.14  
+3 /configure --host=arm-linux CC=arm-linux-gcc --prefix=/usr/local/arm/4.5.1/arm-none-linux-gnueabi/ --enable-video-fbcon --disable-video-x11 --disable-dga --disable-esd --disable-oss --disable-pulseaudio --disable-joystick --disable-cdrom --without-x  
+4 make  
+5 sudo -s
+5 make install  
+6 exit
+第5步是切換成root，這是因為如果直接make install會出現以下錯誤  
+![](https://imgur.com/XDC0ibH.jpg)  
+記得make install後要切回權限(就是第6步的exit)
+7 cd /usr/local/arm/4.5.1/arm-none-linux-gnueabi/lib  
+8 ls \*SDL\*
+應會顯示
+![](https://imgur.com/eIrz3cJ.jpg)
+
+9 cp *SDL* ~/root_mkfs/lib
+接下來是測試SDLlibrary是否可正常運作，使用的方法是寫一個用到SDL.h的程式
+10 vim SDL_TEST.c
+SDL_TEST.c的內容如下：
+```cpp
+ #include "SDL.h"
+ #include <stdio.h>
+ 
+int main() {
+	printf("Initializing SDL.\n") ;
+	/* initial Video and Audio */
+	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)==-1) {
+		printf("Could not initialize SDL: %s.\n", SDL_GetError()) ;
+		  exit(-1) ;
+	}
+	
+	printf("SDL initialized.\n") ;
+	
+	printf("Quiting SDL.\n") ;
+	
+	SDL_Quit() ;
+	
+	printf("Quiting...\n") ;
+	
+	exit(0) ;
+}
+```
+儲存退出後。交叉編譯成讓板子可執行的檔  
+11 arm-linux-gcc SDL_TEST.c -o SDL_TEST -lSDL -I/usr/local/arm/4.5.1/arm-none-linux-gnueabi/include/SDL
+
+12 cp SDL_TEST ~/root_mkfs #複製至板子共享目錄  
+13 ./SDL_TEST #執行  
+可以發現以下錯誤訊息  
+![](https://imgur.com/v0X3d0X.jpg)  
+這個libts-1.0.so.0是tslib這個library會有的，所以我們要安裝tslib，步驟如下：  
+---
+1 sudo apt-get install autoconf  
+2 sudo apt-get install automake  
+3 sudo apt-get install libtool  
+4 git clone https://github.com/kergoth/tslib.git  
+5 cd ./tslib/  
+6 ./autogen.sh  
+7 ./configure --host=arm-linux --prefix=/usr/local/arm/4.5.1/arm-none-linux-gnueabi/ CC=arm-linux-gcc ac_cv_func_malloc_0_nonnull=yes  
+8 make  
+9 make install  
+
+10 locate \*libts\*  
+11 cp -rf /usr/local/arm/4.5.1/arm-none-linux-gnueabi/sys-root/usr/lib/libts-1.0.so* /home/nathan/root_mkfs/lib #複製libts-1.0.so給板子lib
+---
+之後即可成功執行如下圖  
+![](https://imgur.com/ewtDjb8.jpg)  
